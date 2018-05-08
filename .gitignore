@@ -1,1 +1,3 @@
-/.vscode
+.vscode/
+box/json/
+box/logs/log01
