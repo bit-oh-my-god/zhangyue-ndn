@@ -161,7 +161,7 @@ class ParseRoutineHolder(object):
                 return p[2]
         print('can\'t find,{0}, {1}'.format(nodeid,remotenodeid))
         return None
-    # @return [JSONOB_TOPOLOGY, [counter_consumeroutspkt, counter_consumerindata,counter_unsatisfy, spktpathrecord,counter_satisfy, delaymap]]
+    # @return [JSONOB_TOPOLOGY, [counter_consumeroutspkt, counter_consumerindata,counter_unsatisfy, spktpathrecord,counter_satisfy, delaymap, qvlistmap]]
     def Parse_log(self):
         log01_file = open(global_log01ptah, "r")
         lines = log01_file.readlines()
@@ -173,6 +173,7 @@ class ParseRoutineHolder(object):
         counter_unsatisfy = 0
         counter_satisfy = 0
         spktpathrecord = {}
+        qvlistmap = {}
         # [pkts : miliseconds-delay-sum]
         delaymap = [0, 0.0]
         #wafflag055
@@ -207,6 +208,9 @@ class ParseRoutineHolder(object):
         #8 ndn.Producer:OnInterest(): [DEBUG] FUCK101[TaraTrace]SPKT is received on producer with ;prefix=/root;name=/root/leaf-3/%FE%01<fuckend>;
         r8 = re.compile(r'''([0-9]*)\sndn\.Producer:OnInterest\(\):\s\[DEBUG\]\sFUCK101\[TaraTrace\]SPKT\sis\sreceived\son\sproducer\swith\s;prefix=((\/[a-z0-9\-]*)*);name=(\/[a-z0-9\-]*\/[a-z0-9\-]*\/.*)\<fuckend\>;''', re.VERBOSE)
         regexlist["producerreceivespkt"] = r8
+        #2 nfd.Tara2Strategy:beforeSatisfyInterest(): [DEBUG] FUCK831[TaraTrace]attach data with qv = -1.2149e+246
+        r9 = re.compile(r'''([0-9]*)\snfd\.Tara2?Strategy\:beforeSatisfyInterest\(\)\:\s\[DEBUG\]\sFUCK831\[TaraTrace\]attach\sdata\swith\sqv\s=\s(\+?-?\d+\.*\d*e\+?-?[0-9]{0,12})''', re.VERBOSE)
+        regexlist["qvindata"] = r9
         for line in lines :
             regexresult = {}
             for k in regexlist :
@@ -275,6 +279,13 @@ class ParseRoutineHolder(object):
                             spktpathrecord[namespkt]["producerInInterest"] = 1
                 elif k == "beforesatisfy" :
                     counter_satisfy += 1
+                elif k == "qvindata" :
+                    nodeid = v.group(1)
+                    qv = float(nums(v.group(2)))
+                    print("parse one qv={0}".format(qv))
+                    if nodeid not in qvlistmap :
+                        qvlistmap[nodeid] = []
+                    qvlistmap[nodeid].append(qv) 
                 else :
                     nomeaning = 1 # not match regex, may be a nomeaning line
                     sys.exit("fuck-error sadwqnl")
@@ -299,7 +310,8 @@ class ParseRoutineHolder(object):
             counter_unsatisfy, #2
             spktpathrecord,
             counter_satisfy,  #4
-            delaymap],
+            delaymap,
+            qvlistmap,], #6
                ]
     # @return dropmap is {int: [JSONOB_DROP]}
     def Parse_droptrace(self) :
@@ -670,12 +682,12 @@ def mainsmain() :
 def looptorun() :
     # change your graph step here fuckyou!
     # fuckbit
-    maxi = 7
+    maxi = 2
     mini = 1
     errorstep = 0.1
     jsonfilemap = {}
     # all strategy name is ["SarsaLambda", "BestRoute", "Asf", "QLearning", "MultiCast"]
-    for strategyname in ["BestRoute", "SarsaLambda", "QLearning"] :
+    for strategyname in ["BestRoute"] :
         for i in range(mini,maxi,1):
             errorrateinthisloop = i * errorstep
             assert(errorrateinthisloop < 1.0 and errorrateinthisloop >= 0.0)
@@ -721,6 +733,7 @@ def makegraph(jsonfilelist=None,choice = "fake",):
         name2linemap_1 = {}
         name2linemap_2 = {}
         name2linemap_3 = {}
+        qvofnodeid = 5
         xseq = []
         def printspktpathrecord(spktpathrecord) :
             producerButNotBack = []
@@ -771,6 +784,15 @@ def makegraph(jsonfilelist=None,choice = "fake",):
             delivery_rate = counter_list[0] / counter_list[1]
             # [pkts, delay-sum-miliseconds]
             delaylist = counter_list[5]
+            # {nodeid:[qv, qv...]}
+            qvlistmap = counter_list[6]
+            averageqv = 0
+            for idd in qvlistmap :
+                if idd == qvofnodeid :
+                    for qv in qvlistmap[idd]:
+                        print("qv={0}".format(qv))
+                        averageqv += qv
+                    averageqv = averageqv / len(qvlistmap)
             if (counter_list[0] != delaylist[0]) :
                 print("{0},{1}".format(delaylist[0], counter_list[0]))
                 assert(counter_list[0] == delaylist[0])
@@ -799,12 +821,17 @@ def makegraph(jsonfilelist=None,choice = "fake",):
             if strategyname not in name2linemap_2 :
                 name2linemap_2[strategyname] = []
             name2linemap_2[strategyname].append(averagedelay)
+            if strategyname not in name2linemap_3 :
+                name2linemap_3[strategyname] = []
+            name2linemap_3[strategyname].append(averageqv)
         listof = []
         #delivery rate = consumer in / consumer out
         listof.append( [ name2linemap, xseq, "error rate", "", "delivery rate", ]) 
         #listof.append( [ name2linemap_1, xseq, "error rate", "", "unsatisfy / outgoing interest", ])
         #averagedelay = delay sum milisecond / consumer in data
         listof.append( [ name2linemap_2, xseq, "error rate", "", "averagedelay", ])
+        # 
+        listof.append( [ name2linemap_3, xseq, "error rate", "", "averageqv of no-{0}".format(qvofnodeid), ])
         detailgraphmaker = DetailGraphMaker_02(listof)
         detailgraphmaker.dographwithsub()
     #---
@@ -859,12 +886,15 @@ def testfunc() :
         else :
             print("fuck test fail!")
     def testreg01():
-        #0.5	leaf-1	256	netdev://[00:00:00:00:00:01]	OutInterests	80	3.59375	50	2.2460
-        line = "0.5	leaf-1	256	netdev://[00:00:00:00:00:01]	OutInterests	80	3.59375	50	2.2460"
-        r1 = re.compile(r'''(\d+\.*\d*)\t([a-z]{1,10}-?[0-9]*)\t(\d+\.*\d*)\t(.*)\tOutInterests\t(\d+\.*\d*)''', re.VERBOSE)
-        regres = r1.search(line)
+        line="2 nfd.Tara2Strategy:beforeSatisfyInterest(): [DEBUG] FUCK831[TaraTrace]attach data with qv = -1.2149e+246"
+        #r9 = re.compile(r'''([0-9]*)\snfd\.Tara2?Strategy\:beforeSatisfyInterest\(\)\:\s\[DEBUG\]\sFUCK831\[TaraTrace\]attach\sdata\swith\sqv\s=\s(+?-?\d+\.*\d*e+?-?[0-9]{0-12})''', re.VERBOSE)
+        r9 = re.compile(r'''([0-9]*)\snfd\.Tara2?Strategy\:beforeSatisfyInterest\(\)\:\s\[DEBUG\]\sFUCK831\[TaraTrace\]attach\sdata\swith\sqv\s=\s(\+?-?\d+\.*\d*e\+?-?[0-9]{0,12})''', re.VERBOSE)
+        #r9 = re.compile(r'''([0-9]*)\s''', re.VERBOSE)
+        regres = r9.search(line)
         if regres :
             print(regres.group(1))
+            #qv = float(nums(regres.group(2)))
+            #print(qv)
         else :
             print("fuck test fail!")
     testreg01()
