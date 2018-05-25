@@ -31,17 +31,19 @@ wafflag043 = 'ndn.NetDeviceTransport:PointToPointNetDevice:' ## transport and ne
 wafflag044 = 'ErrorModel:' ## link error rate
 wafflag045 = 'nfd.GenericLinkService:nfd.LinkService:' ## link service
 wafflag046 = 'nfd.Forwarder:nfd.Strategy:' ## strategy & forwarder
-wafflag047 = 'Ipv6PacketFilter:Ipv4PacketFilter:CoDelQueueDisc:FqCoDelQueueDisc:TrafficControlLayer:QueueDisc:' ## codel
+wafflag047 = 'CoDelQueueDisc:FqCoDelQueueDisc:TrafficControlLayer:QueueDisc:NetDeviceQueueInterface:NetDeviceQueue:Queue:' ## codel & queue
 wafflag048 = 'AnnotatedTopologyReader:' ## AnnotatedTopologyReader # parse_log need
 wafflag049 = 'ndn.ConsumerCbrspkt:ndn.Producer:ndn.ConsumerCbr:ndn.Consumer:' # apps# parse_log need
 wafflag050 ='ndn.L3RateTracer:' #tracer
 wafflag051 ='nfd.TaraMeasurements:nfd.Tara2Measurements:' #probe and measurment
 wafflag052 ='ndn.L3Protocol:' #l3
 wafflag053 ='ndn.StrategyChoiceHelper:nfd.StrategyChoice:' #strategychoice
-wafflag054 = 'nfd.Tara2Strategy:nfd.TaraStrategy:nfd.BestRouteStrategy2:nfd.AsfStrategy:nfd.MulticastStrategy:' # tarastrategy# parse_log need
+wafflag054 = 'nfd.Tara2Strategy:nfd.TaraStrategy:nfd.BestRouteStrategy2:nfd.AsfStrategy:nfd.MulticastStrategy:nfd.RFStrategy:' # tarastrategy# parse_log need
 wafflag055 = 'ndn.StackHelper:' # stackhelper #parse_log need
-wafflag056 = 'ndn.GlobalRoutingHelper' # routinghelper
-wafflag04444 = wafflag054 + wafflag049 + wafflag051 + wafflag048 + wafflag055
+wafflag056 = 'ndn.GlobalRoutingHelper:' # routinghelper
+wafflag057 = 'TaraCDM:' # taracdm
+wafflag058 = "Ipv6PacketFilter:Ipv4PacketFilter:" # filter
+wafflag04444 = wafflag054 + wafflag049  + wafflag048 + wafflag055
 global_wafflag04 = 'NS_LOG={0} '.format(wafflag04444)
 global_source = '/home/tara/ndnSIM/ns-3/src/ndnSIM/examples/ndn-tree-tracers.cc'
 global_source1 = '/home/tara/ndnSIM/ns-3/src/ndnSIM/examples/ndn-zhangyue.cc'
@@ -208,8 +210,10 @@ class ParseRoutineHolder(object):
         #8 ndn.Producer:OnInterest(): [DEBUG] FUCK101[TaraTrace]SPKT is received on producer with ;prefix=/root;name=/root/leaf-3/%FE%01<fuckend>;
         r8 = re.compile(r'''([0-9]*)\sndn\.Producer:OnInterest\(\):\s\[DEBUG\]\sFUCK101\[TaraTrace\]SPKT\sis\sreceived\son\sproducer\swith\s;prefix=((\/[a-z0-9\-]*)*);name=(\/[a-z0-9\-]*\/[a-z0-9\-]*\/.*)\<fuckend\>;''', re.VERBOSE)
         regexlist["producerreceivespkt"] = r8
+        # wafflag054
+        #1 nfd.Tara2Strategy:beforeSatisfyInterest(): [DEBUG] FUCK831[TaraTrace]attach data with qv = 456.909
         #2 nfd.Tara2Strategy:beforeSatisfyInterest(): [DEBUG] FUCK831[TaraTrace]attach data with qv = -1.2149e+246
-        r9 = re.compile(r'''([0-9]*)\snfd\.Tara2?Strategy\:beforeSatisfyInterest\(\)\:\s\[DEBUG\]\sFUCK831\[TaraTrace\]attach\sdata\swith\sqv\s=\s(\+?-?\d+\.*\d*e\+?-?[0-9]{0,12})''', re.VERBOSE)
+        r9 = re.compile(r'''([0-9]*)\snfd\.Tara2?Strategy\:beforeSatisfyInterest\(\)\:\s\[DEBUG\]\sFUCK831\[TaraTrace\]attach\sdata\swith\sqv\s=\s(\+?-?\d+\.*\d*e?\+?-?[0-9]{0,12})''', re.VERBOSE)
         regexlist["qvindata"] = r9
         for line in lines :
             regexresult = {}
@@ -280,9 +284,9 @@ class ParseRoutineHolder(object):
                 elif k == "beforesatisfy" :
                     counter_satisfy += 1
                 elif k == "qvindata" :
-                    nodeid = v.group(1)
+                    nodeid = int(nums(v.group(1)))
                     qv = float(nums(v.group(2)))
-                    print("parse one qv={0}".format(qv))
+                    #print("parse one qv={0}".format(qv))
                     if nodeid not in qvlistmap :
                         qvlistmap[nodeid] = []
                     qvlistmap[nodeid].append(qv) 
@@ -560,7 +564,7 @@ class DetailGraphMaker_02(object): # make graph with multi-lines 2d
         j = 0
         for name in self.listof[i][0] :
             mark = self.mark_list[1][j % len(self.mark_list[1])] + self.mark_list[0][j % len(self.mark_list[0])]
-            print("mark=" + mark)
+            print("mark=" + mark + "straname=" + name)
             line = ax.plot(self.listof[i][1], self.listof[i][0][name], mark, linewidth = 2, label = name)
             j += 1
         ax.legend(loc='lower right')
@@ -578,6 +582,10 @@ class DetailGraphMaker_02(object): # make graph with multi-lines 2d
         else :
             sys.exit("error - 21321dsc")
         #ax = host_subplot(subflag)
+        #try:
+            #for k in listof[0]:
+        #except ValueError:
+            #return float(s)
         for i in range(0,len(self.listof),1) :
             self.dographinonesub(i, subflag)
         plt.show()
@@ -637,7 +645,9 @@ def mainsmain() :
     <./runMeToStart.py --runsimulation default> ------------------
     <./runMeToStart.py --parsesimulation default> ----------------
     <./runMeToStart.py --makegraph bypython> ----------------------
-    <./runMeToStart.py --runparsegraph default> ----------------------
+    <./runMeToStart.py --makegraph bypyfilename> ----------------------
+    <./runMeToStart.py --runparsegraph default1> ----------------------
+    <./runMeToStart.py --runparsegraph default2> ----------------------
     ''')
     ob_arg.add_argument("--presimulation",help='foo help')
     ob_arg.add_argument("--runsimulation",help='foo help')
@@ -669,49 +679,176 @@ def mainsmain() :
         elif args.makegraph == 'byrscript':
             print("into graph proc -rscript")
             makegraphr()
+        elif args.makegraph == 'bypyfilename':
+            print("into graph proc -bypyfilename")
+            makegraphbyname()
         else :
             sys.exit('error-0017')
     elif args.runparsegraph :
-        if args.runparsegraph == 'default':
+        if args.runparsegraph == 'default1':
             print("into loop")
             looptorun()
+        elif args.runparsegraph == 'default2' :
+            print("into loop")
+            looptorun2()
         else :
             sys.exit('error-0217')
     else :
         sys.exit("Error-001")
+def makegraphbyname():
+    #fuckbit
+    jsonfilemap2 = {
+    }
+    jsonfilemap3 = {
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=300/simu_result_with_strategy            =CDM_with_topofile=taratopo2_with_pktsrate=100":[300,"CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=300/simu_result_with_strategy            =non-CDM_with_topofile=taratopo2_with_pktsrate=100":[300,"non-CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=400/simu_result_with_strategy            =CDM_with_topofile=taratopo2_with_pktsrate=100":[400,"CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=400/simu_result_with_strategy            =non-CDM_with_topofile=taratopo2_with_pktsrate=100":[400,"non-CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=500/simu_result_with_strategy            =CDM_with_topofile=taratopo2_with_pktsrate=100":[500,"CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=500/simu_result_with_strategy            =non-CDM_with_topofile=taratopo2_with_pktsrate=100":[500,"non-CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=600/simu_result_with_strategy            =CDM_with_topofile=taratopo2_with_pktsrate=100":[600,"CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=600/simu_result_with_strategy            =non-CDM_with_topofile=taratopo2_with_pktsrate=100":[600,"non-CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=700/simu_result_with_strategy            =CDM_with_topofile=taratopo2_with_pktsrate=100":[700,"CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=700/simu_result_with_strategy            =non-CDM_with_topofile=taratopo2_with_pktsrate=100":[700,"non-CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=800/simu_result_with_strategy            =CDM_with_topofile=taratopo2_with_pktsrate=100":[800,"CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=800/simu_result_with_strategy            =non-CDM_with_topofile=taratopo2_with_pktsrate=100":[800,"non-CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=900/simu_result_with_strategy            =CDM_with_topofile=taratopo2_with_pktsrate=100":[900,"CS-based"],
+        "/home/tara/TLC_workspace/zhangyue-ndn/box/simu_record/yicitufadedaxiao/tufa=900/simu_result_with_strategy            =non-CDM_with_topofile=taratopo2_with_pktsrate=100":[900,"non-CS-based"],
+    }
+    jsonfilemap = {
+    }
+    #makegraph(choice="delivery rate + satisfy + delay", jsonfilelist=jsonfilemap2, xseqmeaning="errorrate")
+    #makegraph(choice="delivery rate + satisfy + delay", jsonfilelist=jsonfilemap, xseqmeaning="pktsrate")
+    makegraph(choice="delivery rate + satisfy + delay", jsonfilelist=jsonfilemap3, xseqmeaning="tufaliuliang")
 def looptorun() :
     # change your graph step here fuckyou!
     # fuckbit
-    maxi = 2
+    global global_wafflag03
+    examplepattern = [
+        ' --run=\"ndn-tara --errorrate={0} --strategy={1} --pktsrate={2}\"',
+        ' --run=\"ndn-tara --errorrate={0} --strategy={1} --pktsrate={2}\"',
+    ]
+# ============================================ graphs corespond to errorrate
+    targetpattern = examplepattern[0]
+    maxi = 7
     mini = 1
     errorstep = 0.1
+    pktsrate = "100"
     jsonfilemap = {}
-    # all strategy name is ["SarsaLambda", "BestRoute", "Asf", "QLearning", "MultiCast"]
-    for strategyname in ["BestRoute"] :
+    # all strategy name is ["SarsaLambda", "BestRoute", "Asf", "QLearning", "MultiCast", "QLearningLambda", "Icp", "RFStrategy"]
+    for strategyname in ["SarsaLambda","RFStrategy","BestRoute","MultiCast"] :
         for i in range(mini,maxi,1):
-            errorrateinthisloop = i * errorstep
+            errorrateinthisloop = i * errorstep + 0.0
             assert(errorrateinthisloop < 1.0 and errorrateinthisloop >= 0.0)
             print(colored("yellow", "loop sim {0} + {1}".format(errorrateinthisloop, strategyname)))
             topofilename = "taratopo"
             jsonfilenameinthisloop = "simu_result_with_errorrate={0}_with_strategy\
-            ={1}_with_topofile={2}".format(errorrateinthisloop, strategyname, topofilename)
+            ={1}_with_topofile={2}_with_pktsrate={3}".format(errorrateinthisloop, strategyname, topofilename, pktsrate)
             #global_log01ptah = '{0}/box/logs/{1}'.format(global_root, logfilenameinthisloop)
-            global global_wafflag03
-            global_wafflag03 = ' --run=\"ndn-tara --errorrate={0} --strategy={1}\"'.format(errorrateinthisloop, strategyname)
+            global_wafflag03 = targetpattern.format(errorrateinthisloop, strategyname, pktsrate)
             print(colored("yellow", "before loop sim {0} in [{1}, {2})".format(i, mini, maxi)))
             x_runwaf()
             print(colored("yellow", "before loop parse {0} in [{1}, {2})".format(i,mini, maxi)))
             parsesimu(jsonfilename = jsonfilenameinthisloop)
             jsonfullname = '{0}/{1}'.format(global_jsonpath, jsonfilenameinthisloop)
             jsonfilemap[jsonfullname] = [errorrateinthisloop, strategyname]
-    makegraph(choice="delivery rate + satisfy + delay", jsonfilelist=jsonfilemap)
+    
+# ============================================ graphs corespond to errorrate
+# ============================================ graphs corespond to pkts
+    targetpattern = examplepattern[1]
+    maxi = 9
+    mini = 0
+    pktsstep = 30
+    errorrate = 0.3
+    jsonfilemap2 = {}
+    # all strategy name is ["SarsaLambda", "BestRoute", "Asf", "QLearning", "MultiCast", "QLearningLambda", "Icp", "RFStrategy"]
+    for strategyname in ["SarsaLambda","RFStrategy","BestRoute","MultiCast"] :
+        for i in range(mini,maxi,1):
+            pktsrateinthisloop = i * pktsstep + 100
+            assert(pktsrateinthisloop < 1000.0 and pktsrateinthisloop >= 100.0)
+            print(colored("yellow", "loop sim {0} + {1}".format(pktsrateinthisloop, strategyname)))
+            topofilename = "taratopo"
+            jsonfilenameinthisloop = "simu_result_with_errorrate={0}_with_strategy\
+            ={1}_with_topofile={2}_with_pktsrate={3}".format(errorrate, strategyname, topofilename, pktsrateinthisloop)
+            #global_log01ptah = '{0}/box/logs/{1}'.format(global_root, logfilenameinthisloop)
+            global_wafflag03 = targetpattern.format(errorrate, strategyname, pktsrateinthisloop)
+            print(colored("yellow", "before loop sim {0} in [{1}, {2})".format(i, mini, maxi)))
+            x_runwaf()
+            print(colored("yellow", "before loop parse {0} in [{1}, {2})".format(i,mini, maxi)))
+            parsesimu(jsonfilename = jsonfilenameinthisloop)
+            jsonfullname = '{0}/{1}'.format(global_jsonpath, jsonfilenameinthisloop)
+            jsonfilemap2[jsonfullname] = [pktsrateinthisloop, strategyname]
+    
+# ============================================ graphs corespond to pkts
+    makegraph(choice="delivery rate + satisfy + delay", jsonfilelist=jsonfilemap, xseqmeaning="errorrate")
+    makegraph(choice="delivery rate + satisfy + delay", jsonfilelist=jsonfilemap2, xseqmeaning="pktsrate")
+def looptorun2() :
+    # change your graph step here fuckyou!
+    # fuckbit
+    global global_wafflag03
+    examplepattern = [
+        ' --run=\"ndn-tara2 --strategy={0} --pktsrate={1}\"',
+        ' --run=\"ndn-tara2 --errorrate={0} --strategy={1} --pktsrate={2}\"',
+    ]
+# ============================================ graphs corespond to errorrate
+    targetpattern = examplepattern[1]
+    maxi = 1
+    mini = 1
+    errorstep = 0.07
+    pktsrate = "100"
+    jsonfilemap = {}
+    # all strategy name is ["SarsaLambda", "BestRoute", "Asf", "QLearning", "MultiCast", "QLearningLambda", "Icp", "RFStrategy"]
+    for strategyname in ["CDM"] :
+        for i in range(mini,maxi,1):
+            errorrateinthisloop = i * errorstep + 0.1
+            assert(errorrateinthisloop < 1.0 and errorrateinthisloop >= 0.0)
+            print(colored("yellow", "loop sim {0} + {1}".format(errorrateinthisloop, strategyname)))
+            topofilename = "taratopo2"
+            jsonfilenameinthisloop = "simu_result_with_errorrate={0}_with_strategy\
+            ={1}_with_topofile={2}_with_pktsrate={3}".format(errorrateinthisloop, strategyname, topofilename, pktsrate)
+            #global_log01ptah = '{0}/box/logs/{1}'.format(global_root, logfilenameinthisloop)
+            global_wafflag03 = targetpattern.format(errorrateinthisloop, strategyname, pktsrate)
+            print(colored("yellow", "before loop sim {0} in [{1}, {2})".format(i, mini, maxi)))
+            x_runwaf()
+            print(colored("yellow", "before loop parse {0} in [{1}, {2})".format(i,mini, maxi)))
+            parsesimu(jsonfilename = jsonfilenameinthisloop)
+            jsonfullname = '{0}/{1}'.format(global_jsonpath, jsonfilenameinthisloop)
+            jsonfilemap[jsonfullname] = [errorrateinthisloop, strategyname]
+    
+# ============================================ graphs corespond to errorrate
+# ============================================ graphs corespond to pkts
+    targetpattern = examplepattern[0]
+    maxi = 1
+    mini = 0
+    topofilename = "taratopo2"
+    pktsstep = 40
+    jsonfilemap2 = {}
+    # all strategy name is ["SarsaLambda", "BestRoute", "Asf", "QLearning", "MultiCast", "QLearningLambda", "Icp", "RFStrategy"]
+    for strategyname in ["CDM"] :
+        for i in range(mini,maxi,1):
+            pktsrateinthisloop = i * pktsstep + 100
+            assert(pktsrateinthisloop < 1000.0 and pktsrateinthisloop >= 100.0)
+            print(colored("yellow", "loop sim {0} + {1}".format(pktsrateinthisloop, strategyname)))
+            jsonfilenameinthisloop = "simu_result_with_strategy\
+            ={0}_with_topofile={1}_with_pktsrate={2}".format(strategyname, topofilename, pktsrateinthisloop)
+            #global_log01ptah = '{0}/box/logs/{1}'.format(global_root, logfilenameinthisloop)
+            global_wafflag03 = targetpattern.format(strategyname, pktsrateinthisloop)
+            print(colored("yellow", "before loop sim {0} in [{1}, {2})".format(i, mini, maxi)))
+            x_runwaf()
+            print(colored("yellow", "before loop parse {0} in [{1}, {2})".format(i,mini, maxi)))
+            parsesimu(jsonfilename = jsonfilenameinthisloop)
+            jsonfullname = '{0}/{1}'.format(global_jsonpath, jsonfilenameinthisloop)
+            jsonfilemap2[jsonfullname] = [pktsrateinthisloop, strategyname]
+# ============================================ graphs corespond to pkts
+    makegraph(choice="delivery rate + satisfy + delay", jsonfilelist=jsonfilemap2, xseqmeaning="pktsrate")
 def makegraphr():
     cmd ='Rscript /home/tara/ndnSIM/ns-3/src/ndnSIM/examples/graphs/rate-graph.R' 
     print(cmd)
     p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE)
     out,err = p.communicate()
-def makegraph(jsonfilelist=None,choice = "fake",):
+def makegraph(xseqmeaning="errorrate",jsonfilelist=None, choice = "fake",):
     # --
+    # x- time ; y - drop
     def graphofdropedpkts() :
         assert(jsonfilelist == None)
         name = '{0}/defaultjson'.\
@@ -728,13 +865,17 @@ def makegraph(jsonfilelist=None,choice = "fake",):
         dropmapgraphmaker.dograph()
     # --
     # --
-    def graphall() :
+    def graphall(xseqmeaning) :
         name2linemap = {}
         name2linemap_1 = {}
         name2linemap_2 = {}
         name2linemap_3 = {}
-        qvofnodeid = 5
+        name2linemap_4 = {}
+        name2linemap_5 = {}
+        name2linemap_6 = {}
+        qvofnodeid = 4
         xseq = []
+        xseqqv = []
         def printspktpathrecord(spktpathrecord) :
             producerButNotBack = []
             notProducer = []
@@ -774,64 +915,119 @@ def makegraph(jsonfilelist=None,choice = "fake",):
                 if (token_3 < 0) :
                     break
                 print(k)
+        # gurantee order
+        innerjsonfilelist = {}
         for name in jsonfilelist :
-            jsonob = read_file_to_jsonob(name)
-            counter_list = jsonob.get_counter_list()
-            ratemap = jsonob.get_ratemap()
-            errorrate = jsonfilelist[name][0]
+            xseqmean = jsonfilelist[name][0]
             strategyname = jsonfilelist[name][1]
-            # drate = consumer in d-pkt / consumer out i-pkt 
-            delivery_rate = counter_list[0] / counter_list[1]
-            # [pkts, delay-sum-miliseconds]
-            delaylist = counter_list[5]
-            # {nodeid:[qv, qv...]}
-            qvlistmap = counter_list[6]
-            averageqv = 0
-            for idd in qvlistmap :
-                if idd == qvofnodeid :
-                    for qv in qvlistmap[idd]:
-                        print("qv={0}".format(qv))
-                        averageqv += qv
-                    averageqv = averageqv / len(qvlistmap)
-            if (counter_list[0] != delaylist[0]) :
-                print("{0},{1}".format(delaylist[0], counter_list[0]))
-                assert(counter_list[0] == delaylist[0])
-            averagedelay = delaylist[1] / delaylist[0]
-            outgoinginterest = 0
-            for kk in ratemap :
-                outgoinginterest += ratemap[kk]
-            if len(jsonfilelist) == 1 :
-                print(colored("blue", "we would print detail of pkts transmit, because only one scenario in list"))
-                spktpathrecord = counter_list[3]
-                printspktpathrecord(spktpathrecord)
-                break
-            satisfy = counter_list[4] * 1.0
-            unsatisfy = counter_list[2] * 1.0
-            #丢包率 
-            diubaolv = unsatisfy / outgoinginterest
-            # assume that xseq is ordered, if not would bug
-            if errorrate not in xseq :
-                xseq.append(errorrate)
-            if strategyname not in name2linemap :
-                name2linemap[strategyname] = []
-            name2linemap[strategyname].append(delivery_rate)
-            if strategyname not in name2linemap_1 :
-                name2linemap_1[strategyname] = []
-            name2linemap_1[strategyname].append(diubaolv)
-            if strategyname not in name2linemap_2 :
-                name2linemap_2[strategyname] = []
-            name2linemap_2[strategyname].append(averagedelay)
-            if strategyname not in name2linemap_3 :
-                name2linemap_3[strategyname] = []
-            name2linemap_3[strategyname].append(averageqv)
+            if name not in innerjsonfilelist:
+                innerjsonfilelist[name] = {}
+            innerjsonfilelist[name][xseqmean] = strategyname
+        for name in innerjsonfilelist :
+            for xseqmean in innerjsonfilelist[name]:
+                strategyname = innerjsonfilelist[name][xseqmean]
+                jsonob = read_file_to_jsonob(name)
+                nodeid2jsonob_dropmap=jsonob.get_nodeid2jsonob_dropmap()
+                pktsdropsum = 0
+                for k in nodeid2jsonob_dropmap:
+                    # {int: [JSONOB_DROP]}
+                    for l in nodeid2jsonob_dropmap[k]:
+                        pktsdropsum += l.get_pkts()
+                counter_list = jsonob.get_counter_list()
+                ratemap = jsonob.get_ratemap()
+                # drate = consumer in d-pkt / consumer out i-pkt 
+                delivery_rate = counter_list[0] / counter_list[1]
+                # [pkts, delay-sum-miliseconds]
+                delaylist = counter_list[5]
+                # {nodeid:[qv, qv...]}
+                qvlistmap = counter_list[6]
+                #print(qvlistmap)
+                averageqv = 0
+                if (counter_list[0] != delaylist[0]) :
+                    print("{0},{1}".format(delaylist[0], counter_list[0]))
+                    assert(counter_list[0] == delaylist[0])
+                averagedelay = delaylist[1] / delaylist[0]
+                adpanish = (delaylist[1] + (6000 * (counter_list[1] - counter_list[0]))) / (delaylist[0] + (counter_list[1] - counter_list[0]))
+                print("adpanish={0}; not-in={1}; in={2}; insum={3}".format(adpanish,(counter_list[1] - counter_list[0]),delaylist[0], delaylist[1]))
+                outgoinginterest = 0
+                for kk in ratemap :
+                    outgoinginterest += ratemap[kk]
+                for idd in qvlistmap :
+                    intidd = int(nums(idd))
+                    print(qvlistmap[idd])
+                    if  intidd == qvofnodeid :
+                        xseqqv = []
+                        name2linemap_4 = {}
+                        indexqv = 0
+                        for qv in qvlistmap[idd]:
+                            print("qv={0}".format(qv))
+                            if strategyname not in name2linemap_4 :
+                                name2linemap_4[strategyname] = []
+                            name2linemap_4[strategyname].append(qv)
+                            xseqqv.append(indexqv)
+                            indexqv += 1
+                            averageqv += qv
+                        averageqv = averageqv / len(qvlistmap)
+                        assert(len(name2linemap_4[strategyname]) == len(xseqqv))
+                        break
+                if len(jsonfilelist) == 1 :
+                    print(colored("blue", "we would print detail of pkts transmit, because only one scenario in list"))
+                    spktpathrecord = counter_list[3]
+                    printspktpathrecord(spktpathrecord)
+                    break
+                satisfy = counter_list[4] * 1.0
+                unsatisfy = counter_list[2] * 1.0
+                #丢包率 
+                diubaolv = 1 - (satisfy / outgoinginterest)
+                # assume that xseq is ordered, if not would bug
+                if xseqmean not in xseq :
+                    xseq.append(xseqmean)
+                if strategyname not in name2linemap :
+                    name2linemap[strategyname] = []
+                name2linemap[strategyname].append(delivery_rate)
+                if strategyname not in name2linemap_1 :
+                    name2linemap_1[strategyname] = []
+                name2linemap_1[strategyname].append(diubaolv)
+                if strategyname not in name2linemap_2 :
+                    name2linemap_2[strategyname] = []
+                name2linemap_2[strategyname].append(averagedelay)
+                if strategyname not in name2linemap_3 :
+                    name2linemap_3[strategyname] = []
+                name2linemap_3[strategyname].append(averageqv)
+                if strategyname not in name2linemap_5 :
+                    name2linemap_5[strategyname] = []
+                name2linemap_5[strategyname].append(adpanish)
+                if strategyname not in name2linemap_6 :
+                    name2linemap_6[strategyname] = []
+                name2linemap_6[strategyname].append(pktsdropsum)
+# ==========================
+# fuckbit
+# init listof
         listof = []
-        #delivery rate = consumer in / consumer out
-        listof.append( [ name2linemap, xseq, "error rate", "", "delivery rate", ]) 
-        #listof.append( [ name2linemap_1, xseq, "error rate", "", "unsatisfy / outgoing interest", ])
-        #averagedelay = delay sum milisecond / consumer in data
-        listof.append( [ name2linemap_2, xseq, "error rate", "", "averagedelay", ])
-        # 
-        listof.append( [ name2linemap_3, xseq, "error rate", "", "averageqv of no-{0}".format(qvofnodeid), ])
+
+        # 递交率（ａｐｐ） = consumer in / consumer out
+        #listof.append( [ name2linemap, xseq, xseqmeaning, "", "delivery rate   ", ]) 
+
+        # 丢包率（网络） = 1- (satisfy / outgoing interest)
+        #listof.append( [ name2linemap_1, xseq, xseqmeaning, "", "unsatisfy rate", ])
+
+        # 平均时延（ａｐｐ）averagedelay = delay sum milisecond / consumer in data
+        # listof.append( [ name2linemap_2, xseq, xseqmeaning, "", "averagedelay", ])
+
+        # drop，发送接受队列拥塞主动丢包
+        listof.append( [ name2linemap_6, xseq, xseqmeaning, "", "dropsinqueue", ])
+
+        # Q值
+        # if (len(jsonfilelist)==1) :
+        #    print(name2linemap_4)
+        #    listof.append( [ name2linemap_4, xseqqv, xseqmeaning, "", "qv of no-{0}".format(qvofnodeid), ])
+        # else :
+        #    # 在某一个节点收到的ｄａｔａ中的Ｑ值的平均
+        #    listof.append( [ name2linemap_3, xseq, xseqmeaning, "", "averageqv of no-{0}".format(qvofnodeid), ])
+
+        # 平均时延带惩罚（ａｐｐ）averagedelay = delay sum milisecond + (panish * consumerout - consumerin)/ consumer in data
+        #listof.append( [ name2linemap_5, xseq, xseqmeaning, "", "averagedelay(panish)", ])
+# ==========================
         detailgraphmaker = DetailGraphMaker_02(listof)
         detailgraphmaker.dographwithsub()
     #---
@@ -840,7 +1036,14 @@ def makegraph(jsonfilelist=None,choice = "fake",):
     elif choice == "fake" :
         graphfake()
     elif choice == "delivery rate + satisfy + delay":
-        graphall()
+        if xseqmeaning == "errorrate" :
+            graphall(xseqmeaning)
+        elif xseqmeaning == "pktsrate" :
+            graphall(xseqmeaning)
+        elif xseqmeaning == "tufaliuliang" :
+            graphall(xseqmeaning)
+        else :
+            sys.exit("Error-0113 asdqfuck12321")
     else :
         sys.exit("Error-0123 asdqfuck12321")
     print(colored('red','end'))
@@ -859,6 +1062,8 @@ def parsesimu(jsonfilename = "defaultjson"):
     save_this_jsonob_as(name, json_this)
     print(colored('red','end'))
 def runsimu() :
+    global global_wafflag03
+    global_wafflag03 = ' --run=\"ndn-tara2\"'
     x_runwaf()
     print(colored('red','end'))
 def presimu() :
@@ -886,13 +1091,21 @@ def testfunc() :
         else :
             print("fuck test fail!")
     def testreg01():
+        line2="1 nfd.Tara2Strategy:beforeSatisfyInterest(): [DEBUG] FUCK831[TaraTrace]attach data with qv = 456.909"
         line="2 nfd.Tara2Strategy:beforeSatisfyInterest(): [DEBUG] FUCK831[TaraTrace]attach data with qv = -1.2149e+246"
         #r9 = re.compile(r'''([0-9]*)\snfd\.Tara2?Strategy\:beforeSatisfyInterest\(\)\:\s\[DEBUG\]\sFUCK831\[TaraTrace\]attach\sdata\swith\sqv\s=\s(+?-?\d+\.*\d*e+?-?[0-9]{0-12})''', re.VERBOSE)
-        r9 = re.compile(r'''([0-9]*)\snfd\.Tara2?Strategy\:beforeSatisfyInterest\(\)\:\s\[DEBUG\]\sFUCK831\[TaraTrace\]attach\sdata\swith\sqv\s=\s(\+?-?\d+\.*\d*e\+?-?[0-9]{0,12})''', re.VERBOSE)
+        r9 = re.compile(r'''([0-9]*)\snfd\.Tara2?Strategy\:beforeSatisfyInterest\(\)\:\s\[DEBUG\]\sFUCK831\[TaraTrace\]attach\sdata\swith\sqv\s=\s(\+?-?\d+\.*\d*e?\+?-?[0-9]{0,12})''', re.VERBOSE)
         #r9 = re.compile(r'''([0-9]*)\s''', re.VERBOSE)
         regres = r9.search(line)
+        regres2 = r9.search(line2)
         if regres :
             print(regres.group(1))
+            #qv = float(nums(regres.group(2)))
+            #print(qv)
+        else :
+            print("fuck test fail!")
+        if regres2 :
+            print(regres2.group(1))
             #qv = float(nums(regres.group(2)))
             #print(qv)
         else :
